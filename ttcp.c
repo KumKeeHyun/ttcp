@@ -84,6 +84,14 @@ struct event {
 };
 struct event *unused_event __attribute__((unused));
 
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, u32);
+	__type(value, u32);
+	__uint(max_entries, 32);
+	__uint(pinning, LIBBPF_PIN_BY_NAME);
+} filter_table SEC(".maps");
+
 SEC("fentry/tcp_close")
 int BPF_PROG(tcp_close, struct sock *sk) {
   if (sk->__sk_common.skc_family != AF_INET) {
@@ -93,6 +101,12 @@ int BPF_PROG(tcp_close, struct sock *sk) {
   // The input struct sock is actually a tcp_sock, so we can type-cast
   struct tcp_sock *ts = bpf_skc_to_tcp_sock(sk);
   if (!ts) {
+    return 0;
+  }
+
+  u32 key = sk->__sk_common.skc_rcv_saddr;
+  u32 *val = bpf_map_lookup_elem(&filter_table, &key);
+  if (val == NULL) {
     return 0;
   }
 

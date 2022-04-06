@@ -36,7 +36,7 @@ container-shell:
 		"${IMAGE}:${VERSION}"
 
 clean:
-	sudo rm ./bpf_bpfel.* ./ttcp
+	sudo rm ./bpf_bpfel.o ./bpf_bpfel.go ./main
 	sudo rm -rf /sys/fs/bpf/ttcp_filter_table
 
 all: generate

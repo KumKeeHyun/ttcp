@@ -35,11 +35,35 @@ import (
 )
 
 // $BPF_CLANG and $BPF_CFLAGS are set by the Makefile.
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc $BPF_CLANG -cflags $BPF_CFLAGS -target bpfel -type event bpf ttcp.c -- -I./headers
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc $BPF_CLANG -cflags $BPF_CFLAGS -target bpfel -type event bpf ./bpf/ttcp.c -- -I./bpf/headers
 
 const (
 	bpfFSPath = "/sys/fs/bpf/ttcp_filter_table"
 )
+
+// NativeEndian is set to either binary.BigEndian or binary.LittleEndian,
+// depending on the host's endianness.
+var NativeEndian binary.ByteOrder
+
+// Clang is set to either "el" or "eb" depending on the host's endianness.
+var ClangEndian string
+
+func init() {
+	if isBigEndian() {
+		NativeEndian = binary.BigEndian
+		ClangEndian = "eb"
+	} else {
+		NativeEndian = binary.LittleEndian
+		ClangEndian = "el"
+	}
+	log.Printf("set NativeEndian: %s\n", ClangEndian)
+}
+
+func isBigEndian() (ret bool) {
+	i := int(0x1)
+	bs := (*[int(unsafe.Sizeof(i))]byte)(unsafe.Pointer(&i))
+	return bs[0] == 0
+}
 
 func main() {
 	stopper := make(chan os.Signal, 1)
@@ -129,25 +153,16 @@ func intToIP(ipNum uint32) net.IP {
 	return ip
 }
 
-// NativeEndian is set to either binary.BigEndian or binary.LittleEndian,
-// depending on the host's endianness.
-var NativeEndian binary.ByteOrder
-
-// Clang is set to either "el" or "eb" depending on the host's endianness.
-var ClangEndian string
-
-func init() {
-	if isBigEndian() {
-		NativeEndian = binary.BigEndian
-		ClangEndian = "eb"
-	} else {
-		NativeEndian = binary.LittleEndian
-		ClangEndian = "el"
-	}
+func ipToInt(ip net.IP) uint32 {
+	return NativeEndian.Uint32(ip)
 }
 
-func isBigEndian() (ret bool) {
-	i := int(0x1)
-	bs := (*[int(unsafe.Sizeof(i))]byte)(unsafe.Pointer(&i))
-	return bs[0] == 0
+func intToIPeb(ipNum uint32) net.IP {
+	ip := make(net.IP, 4)
+	binary.BigEndian.PutUint32(ip, ipNum)
+	return ip
+}
+
+func ipToInteb(ip net.IP) uint32 {
+	return binary.BigEndian.Uint32(ip)
 }

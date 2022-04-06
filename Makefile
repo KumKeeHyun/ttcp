@@ -36,6 +36,8 @@ container-shell:
 		"${IMAGE}:${VERSION}"
 
 clean:
+	sudo rm ./bpf_bpfel.* ./ttcp
+	sudo rm -rf /sys/fs/bpf/ttcp_filter_table
 
 all: generate
 
@@ -44,3 +46,7 @@ generate: export BPF_CLANG := $(CLANG)
 generate: export BPF_CFLAGS := $(CFLAGS)
 generate:
 	go generate .
+
+local:
+	go build -o main *.go
+	sudo ./main

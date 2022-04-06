@@ -85,10 +85,10 @@ struct event {
 struct event *unused_event __attribute__((unused));
 
 struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__type(key, u32);
-	__type(value, u32);
-	__uint(max_entries, 32);
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, __be32);
+	__type(value, __be32);
+	__uint(max_entries, 1 << 3);
 	__uint(pinning, LIBBPF_PIN_BY_NAME);
 } filter_table SEC(".maps");
 
@@ -98,15 +98,15 @@ int BPF_PROG(tcp_close, struct sock *sk) {
     return 0;
   }
 
+  u32 saddr = sk->__sk_common.skc_rcv_saddr;
+  u32 *val = bpf_map_lookup_elem(&filter_table, &saddr);
+  if (val == NULL) { // if saddr no exist in filter_table
+    return 0;
+  } 
+
   // The input struct sock is actually a tcp_sock, so we can type-cast
   struct tcp_sock *ts = bpf_skc_to_tcp_sock(sk);
   if (!ts) {
-    return 0;
-  }
-
-  u32 key = sk->__sk_common.skc_rcv_saddr;
-  u32 *val = bpf_map_lookup_elem(&filter_table, &key);
-  if (val == NULL) {
     return 0;
   }
 

@@ -22,7 +22,7 @@ VERSION := 1648566014
 
 # Build all ELF binaries using a containerized LLVM toolchain.
 container-all:
-	${CONTAINER_ENGINE} run --rm \
+	sudo ${CONTAINER_ENGINE} run --rm \
 		-v "${REPODIR}":/ebpf -w /ebpf --env MAKEFLAGS \
 		--env CFLAGS="-fdebug-prefix-map=/ebpf=." \
 		--env HOME="/tmp" \
@@ -31,7 +31,7 @@ container-all:
 
 # (debug) Drop the user into a shell inside the container as root.
 container-shell:
-	${CONTAINER_ENGINE} run --rm -ti \
+	sudo ${CONTAINER_ENGINE} run --rm -ti \
 		-v "${REPODIR}":/ebpf -w /ebpf \
 		"${IMAGE}:${VERSION}"
 

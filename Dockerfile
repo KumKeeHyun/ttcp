@@ -6,7 +6,7 @@ ENV GO111MODULE=on \
     GOARCH=amd64
 
 WORKDIR /build
-COPY go.mod go.sum main.go bpf_bpfel.go bpf_bpfel.o ./
+COPY . .
 RUN go mod download
 RUN go build -o main .
 
@@ -14,4 +14,6 @@ WORKDIR /dist
 RUN cp /build/main .
 FROM alpine:latest
 COPY --from=builder /dist/main .
+# VOLUME [ “/sys/fs/bpf” ]
+EXPOSE 8090
 ENTRYPOINT ["/main"]

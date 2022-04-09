@@ -28,7 +28,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/KumKeeHyun/ttcp/bpf"
 	"github.com/KumKeeHyun/ttcp/internal"
 	"github.com/KumKeeHyun/ttcp/server"
 
@@ -48,9 +47,9 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if err := os.MkdirAll(bpf.FilterTablePath, os.ModePerm); err != nil {
-		log.Fatalf("failed to create bpf fs subpath: %+v", err)
-	}
+	// if err := os.MkdirAll(bpf.FilterTablePath, os.ModePerm); err != nil {
+	// 	log.Fatalf("failed to create bpf fs subpath: %+v", err)
+	// }
 
 	// Allow the current process to lock memory for eBPF resources.
 	if err := rlimit.RemoveMemlock(); err != nil {
@@ -60,9 +59,9 @@ func main() {
 	// Load pre-compiled programs and maps into the kernel.
 	objs := bpfObjects{}
 	if err := loadBpfObjects(&objs, &ebpf.CollectionOptions{
-		Maps: ebpf.MapOptions{
-			PinPath: bpf.FilterTablePath,
-		},
+		// Maps: ebpf.MapOptions{
+		// 	PinPath: bpf.FilterTablePath,
+		// },
 	}); err != nil {
 		log.Fatalf("loading objects: %v", err)
 	}

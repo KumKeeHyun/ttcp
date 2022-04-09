@@ -89,7 +89,7 @@ struct {
 	__type(key, __be32);
 	__type(value, __be32);
 	__uint(max_entries, 1 << 3);
-	__uint(pinning, LIBBPF_PIN_BY_NAME);
+	// __uint(pinning, LIBBPF_PIN_BY_NAME);
 } filter_table SEC(".maps");
 
 SEC("fentry/tcp_close")

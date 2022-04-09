@@ -47,6 +47,16 @@ generate: export BPF_CFLAGS := $(CFLAGS)
 generate:
 	go generate .
 
-local:
-	go build -o main *.go
-	sudo ./main
+BUILD_IMAGE := kbzjung359/ttcp
+BUILD_VERSION := v0.0.0
+
+build: container-all
+	sudo docker build -t ${BUILD_IMAGE}:${BUILD_VERSION} .
+
+push:
+	sudo docker push "${BUILD_IMAGE}:${BUILD_VERSION}"
+
+run:
+	sudo docker run --rm --privileged \
+		-p 8090:8090 \
+		"${BUILD_IMAGE}:${BUILD_VERSION}"

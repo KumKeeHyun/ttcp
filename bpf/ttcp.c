@@ -99,10 +99,12 @@ int BPF_PROG(tcp_close, struct sock *sk) {
   }
 
   u32 saddr = sk->__sk_common.skc_rcv_saddr;
-  u32 *val = bpf_map_lookup_elem(&filter_table, &saddr);
-  if (val == NULL) { // if saddr no exist in filter_table
-    return 0;
-  } 
+  u32 daddr = sk->__sk_common.skc_daddr;
+  // if saddr or daddr no exist in filter_table
+  if (bpf_map_lookup_elem(&filter_table, &saddr) == NULL)
+    if (bpf_map_lookup_elem(&filter_table, &daddr) == NULL) 
+      return 0;
+  
 
   // The input struct sock is actually a tcp_sock, so we can type-cast
   struct tcp_sock *ts = bpf_skc_to_tcp_sock(sk);

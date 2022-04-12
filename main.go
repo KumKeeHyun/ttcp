@@ -31,7 +31,6 @@ import (
 	"github.com/KumKeeHyun/ttcp/internal"
 	"github.com/KumKeeHyun/ttcp/server"
 
-	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/ringbuf"
 	"github.com/cilium/ebpf/rlimit"
@@ -41,31 +40,32 @@ import (
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc $BPF_CLANG -cflags $BPF_CFLAGS -target bpfel -type event bpf ./bpf/ttcp.c -- -I./bpf/headers
 
 func main() {
-	stopper := make(chan os.Signal, 1)
-	signal.Notify(stopper, os.Interrupt, syscall.SIGTERM)
-
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM)
 	defer cancel()
-
-	// if err := os.MkdirAll(bpf.FilterTablePath, os.ModePerm); err != nil {
-	// 	log.Fatalf("failed to create bpf fs subpath: %+v", err)
-	// }
 
 	// Allow the current process to lock memory for eBPF resources.
 	if err := rlimit.RemoveMemlock(); err != nil {
 		log.Fatal(err)
 	}
 
+	objs, bpfClose := startBPFProgram(ctx)
+	defer bpfClose()
+	
+	startApiServer(ctx, objs)
+
+	<-ctx.Done()
+	log.Println(ctx.Err())
+}
+
+func startBPFProgram(ctx context.Context) (*bpfObjects, func()) {
 	// Load pre-compiled programs and maps into the kernel.
 	objs := bpfObjects{}
-	if err := loadBpfObjects(&objs, &ebpf.CollectionOptions{
-		// Maps: ebpf.MapOptions{
-		// 	PinPath: bpf.FilterTablePath,
-		// },
-	}); err != nil {
+	if err := loadBpfObjects(&objs, nil); err != nil {
 		log.Fatalf("loading objects: %v", err)
 	}
-	defer objs.Close()
 
 	link, err := link.AttachTracing(link.TracingOptions{
 		Program: objs.bpfPrograms.TcpClose,
@@ -73,13 +73,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer link.Close()
-
+	
 	rd, err := ringbuf.NewReader(objs.bpfMaps.Events)
 	if err != nil {
 		log.Fatalf("opening ringbuf reader: %s", err)
 	}
-	defer rd.Close()
 
 	log.Printf("%-15s %-6s -> %-15s %-6s %-6s",
 		"Src addr",
@@ -91,10 +89,11 @@ func main() {
 
 	go readLoop(ctx, rd)
 
-	startApiServer(ctx, &objs)
-
-	// Wait
-	<-stopper
+	return &objs, func() {
+		rd.Close()
+		link.Close()
+		objs.Close()
+	}
 }
 
 func readLoop(ctx context.Context, rd *ringbuf.Reader) {
@@ -103,7 +102,7 @@ func readLoop(ctx context.Context, rd *ringbuf.Reader) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("received cancel, exiting..")
+			log.Println("readLoop: received cancel, exiting..")
 			return
 		default:
 			record, err := rd.Read()

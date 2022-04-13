@@ -81,6 +81,7 @@ struct event {
   u32 saddr;
   u32 daddr;
   u32 srtt;
+  u32  isInbound;
 };
 struct event *unused_event __attribute__((unused));
 
@@ -100,10 +101,15 @@ int BPF_PROG(tcp_close, struct sock *sk) {
 
   u32 saddr = sk->__sk_common.skc_rcv_saddr;
   u32 daddr = sk->__sk_common.skc_daddr;
+  u32 isInbound;
   // if saddr or daddr no exist in filter_table
   if (bpf_map_lookup_elem(&filter_table, &saddr) == NULL)
     if (bpf_map_lookup_elem(&filter_table, &daddr) == NULL) 
       return 0;
+    else
+      isInbound = 1;
+  else
+    isInbound = 0;
   
 
   // The input struct sock is actually a tcp_sock, so we can type-cast
@@ -117,6 +123,8 @@ int BPF_PROG(tcp_close, struct sock *sk) {
   if (!tcp_info) {
     return 0;
   }
+
+  tcp_info->isInbound = isInbound;
 
   tcp_info->saddr = sk->__sk_common.skc_rcv_saddr;
   tcp_info->daddr = sk->__sk_common.skc_daddr;

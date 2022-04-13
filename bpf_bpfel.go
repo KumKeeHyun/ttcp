@@ -14,11 +14,12 @@ import (
 )
 
 type bpfEvent struct {
-	Sport uint16
-	Dport uint16
-	Saddr uint32
-	Daddr uint32
-	Srtt  uint32
+	Sport     uint16
+	Dport     uint16
+	Saddr     uint32
+	Daddr     uint32
+	Srtt      uint32
+	IsInbound uint32
 }
 
 // loadBpf returns the embedded CollectionSpec for bpf.
